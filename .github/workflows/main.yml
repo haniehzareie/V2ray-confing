@@ -5,25 +5,37 @@ on:
   schedule:
     - cron: '*/15 * * * *'
 
-permissions:
-  contents: write
-
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      - name: Install
+      
+      - name: Install requests
         run: pip install requests
-      - name: Run
+      
+      - name: Run Finder script
         run: python Finder.py
-      - name: Save
+        env:
+          PYTHONUNBUFFERED: 1
+      
+      - name: Commit and push changes
         run: |
-          git config user.name "bot"
-          git config user.email "bot@user.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add Germany_vless.txt
-          git diff --staged --quiet || git commit -m "update"
-          git push
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Auto-update V2ray configs [skip actions]"
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
+          fi
