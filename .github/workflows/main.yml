@@ -1,4 +1,4 @@
-name: V2ray Finder
+name: V2ray Config Finder
 
 on:
   workflow_dispatch:
@@ -6,14 +6,11 @@ on:
     - cron: '*/15 * * * *'
 
 jobs:
-  run:
+  scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          fetch-depth: 0
       
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -25,17 +22,17 @@ jobs:
       
       - name: Run Finder script
         run: python Finder.py
-        env:
-          PYTHONUNBUFFERED: 1
       
-      - name: Commit and push changes
+      - name: Upload result as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Germany-Vless-Configs
+          path: Germany_vless.txt
+      
+      - name: Display output (for log)
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add Germany_vless.txt
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
+          if [ -f Germany_vless.txt ]; then
+            echo "✅ فایل ساخته شد! تعداد خطوط: $(wc -l < Germany_vless.txt)"
           else
-            git commit -m "Auto-update V2ray configs [skip actions]"
-            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
+            echo "❌ فایل ساخته نشد!"
           fi
