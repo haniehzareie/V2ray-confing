@@ -1,23 +1,36 @@
 import requests
 import base64
 import re
+import socket
+import time
 
-def is_german_or_finnish_ip(ip_info_url):
-    """بررسی می‌کند که IP متعلق به آلمان (DE) یا فنلاند (FI) است یا خیر"""
+def is_alive_from_iran(vless_link):
+    """بررسی زنده بودن کانفیگ vless از داخل ایران با تست اتصال به IP و پورت"""
     try:
-        response = requests.get(ip_info_url, timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            country_code = data.get('country_code', '')
-            return country_code in ['DE', 'FI']
-    except:
-        pass
-    return False
+        # استخراج IP و پورت از لینک vless
+        match = re.search(r'vless://[^@]+@([^:]+):(\d+)', vless_link)
+        if not match:
+            return False
+        
+        ip = match.group(1)
+        port = int(match.group(2))
+        
+        # تست اتصال با سوکت (timeout 3 ثانیه)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(3)
+        result = sock.connect_ex((ip, port))
+        sock.close()
+        
+        # اگر result == 0 یعنی اتصال برقرار شده (پورت باز است)
+        return result == 0
+        
+    except Exception as e:
+        print(f"خطا در تست اتصال: {e}")
+        return False
 
 def decode_config(encoded_str):
     """تلاش برای دیکد کردن کانفیگ‌های base64"""
     try:
-        # حذف whitespace و تلاش برای دیکد
         cleaned = encoded_str.strip()
         decoded = base64.b64decode(cleaned).decode('utf-8')
         return decoded
@@ -30,10 +43,9 @@ def extract_vless_from_text(text):
     return re.findall(vless_pattern, text)
 
 def process_subscription_url(url):
-    """پردازش یک سابسکریپشن لینک و برگرداندن vlessهای معتبر (آلمان/فنلاند)"""
+    """پردازش یک سابسکریپشن لینک و برگرداندن vlessهای زنده از داخل ایران"""
     found_vless = []
     try:
-        # دریافت محتوای سابسکریپشن
         resp = requests.get(url, timeout=15)
         if resp.status_code != 200:
             return []
@@ -48,22 +60,21 @@ def process_subscription_url(url):
         # استخراج تمام لینک‌های vless
         vless_links = extract_vless_from_text(content)
         
+        print(f"  {len(vless_links)} کانفیگ vless یافت شد، در حال تست اتصال...")
+        
         for link in vless_links:
-            # استخراج IP از لینک vless (بعد از @ و قبل از : )
-            match = re.search(r'vless://[^@]+@([^:]+):', link)
-            if match:
-                ip = match.group(1)
-                # بررسی IP با استفاده از سرویس ip-api.com
-                ip_info_url = f"http://ip-api.com/json/{ip}?fields=country_code"
-                if is_german_or_finnish_ip(ip_info_url):
-                    found_vless.append(link)
+            # بررسی زنده بودن کانفیگ
+            if is_alive_from_iran(link):
+                found_vless.append(link)
+                print(f"    ✓ کانفیگ زنده پیدا شد")
+            time.sleep(0.5)  # تاخیر برای جلوگیری از سنگین شدن تست
+            
     except Exception as e:
         print(f"خطا در پردازش {url}: {e}")
     
     return found_vless
 
 def main():
-    # آدرس فایل sub.txt در ریپازیتوری (فرض می‌کنیم در مسیر جاری است)
     sub_file_path = "Sub.txt"
     
     try:
@@ -79,18 +90,18 @@ def main():
         print(f"در حال بررسی: {sub_url}")
         vless_list = process_subscription_url(sub_url)
         if vless_list:
-            print(f"  -> {len(vless_list)} کانفیگ vless آلمان/فنلاند پیدا شد")
+            print(f"  -> {len(vless_list)} کانفیگ vless زنده پیدا شد")
             all_vless.extend(vless_list)
         else:
-            print("  -> موردی یافت نشد")
+            print("  -> هیچ کانفیگ زنده‌ای یافت نشد")
     
-    # ذخیره نتایج در فایل Germany_vless.txt
-    output_file = "Germany_vless.txt"
+    # ذخیره نتایج در فایل Live_vless.txt
+    output_file = "Live_vless.txt"
     with open(output_file, 'w') as f:
         for vless in all_vless:
             f.write(vless + '\n')
     
-    print(f"\nعملیات کامل شد. {len(all_vless)} کانفیگ در {output_file} ذخیره شد.")
+    print(f"\nعملیات کامل شد. {len(all_vless)} کانفیگ زنده در {output_file} ذخیره شد.")
 
 if __name__ == "__main__":
     main()
