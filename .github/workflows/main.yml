@@ -2,9 +2,11 @@ name: Run V2ray Finder
 
 on:
   schedule:
-    # هر ۱۵ دقیقه یکبار اجرا شود (زمان UTC)
     - cron: '*/15 * * * *'
-  workflow_dispatch:  # امکان اجرای دستی از تب Actions
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   find-vless:
@@ -26,14 +28,38 @@ jobs:
         python -m pip install --upgrade pip
         pip install requests
     
+    - name: Debug - List files
+      run: |
+        echo "Files in repository:"
+        ls -la
+        echo "Content of Sub.txt:"
+        cat Sub.txt || echo "Sub.txt is empty or missing!"
+    
     - name: Run Finder script
       run: |
         python Finder.py
+      continue-on-error: false
+    
+    - name: Check if output file was created
+      run: |
+        if [ -f "Germany_vless.txt" ]; then
+          echo "✅ Germany_vless.txt created successfully!"
+          echo "Number of lines: $(wc -l < Germany_vless.txt)"
+        else
+          echo "❌ Germany_vless.txt was NOT created!"
+          exit 1
+        fi
     
     - name: Commit and push changes
+      if: success()
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add Germany_vless.txt
-        git diff --staged --quiet || git commit -m "Auto-update: V2ray configs $(date '+%Y-%m-%d %H:%M:%S')"
-        git push
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Auto-update V2ray configs $(date '+%Y-%m-%d %H:%M:%S')"
+          git push
+          echo "✅ Changes pushed"
+        fi
