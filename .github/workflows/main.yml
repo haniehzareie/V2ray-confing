@@ -1,65 +1,29 @@
-name: Run V2ray Finder
+name: V2ray Finder
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '*/15 * * * *'
-  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  find-vless:
+  run:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install requests
-    
-    - name: Debug - List files
-      run: |
-        echo "Files in repository:"
-        ls -la
-        echo "Content of Sub.txt:"
-        cat Sub.txt || echo "Sub.txt is empty or missing!"
-    
-    - name: Run Finder script
-      run: |
-        python Finder.py
-      continue-on-error: false
-    
-    - name: Check if output file was created
-      run: |
-        if [ -f "Germany_vless.txt" ]; then
-          echo "✅ Germany_vless.txt created successfully!"
-          echo "Number of lines: $(wc -l < Germany_vless.txt)"
-        else
-          echo "❌ Germany_vless.txt was NOT created!"
-          exit 1
-        fi
-    
-    - name: Commit and push changes
-      if: success()
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add Germany_vless.txt
-        if git diff --staged --quiet; then
-          echo "No changes to commit"
-        else
-          git commit -m "Auto-update V2ray configs $(date '+%Y-%m-%d %H:%M:%S')"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install
+        run: pip install requests
+      - name: Run
+        run: python Finder.py
+      - name: Save
+        run: |
+          git config user.name "bot"
+          git config user.email "bot@user.com"
+          git add Germany_vless.txt
+          git diff --staged --quiet || git commit -m "update"
           git push
-          echo "✅ Changes pushed"
-        fi
