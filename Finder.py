@@ -64,7 +64,7 @@ def process_subscription_url(url):
 
 def main():
     # آدرس فایل sub.txt در ریپازیتوری (فرض می‌کنیم در مسیر جاری است)
-    sub_file_path = "sub.txt"
+    sub_file_path = "Sub.txt"
     
     try:
         with open(sub_file_path, 'r') as f:
